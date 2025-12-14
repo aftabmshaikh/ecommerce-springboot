@@ -1,0 +1,18 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+    service: user-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8084
+    name: http
+  selector:
+    app: user-service

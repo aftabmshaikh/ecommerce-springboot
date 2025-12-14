@@ -1,0 +1,18 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+    service: payment-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8085
+    name: http
+  selector:
+    app: payment-service

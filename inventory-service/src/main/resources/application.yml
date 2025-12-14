@@ -1,0 +1,154 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: inventory-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/inventorydb
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      auto-commit: true
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: inventory-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.ecommerce.inventory.dto,com.ecommerce.inventory.event"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      buffer-memory: 33554432
+      properties:
+        linger.ms: 10
+        enable.idempotence: true
+  
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 5000
+            logger-level: basic
+  
+  sleuth:
+    sampler:
+      probability: 1.0
+    propagation:
+      type: B3
+  
+  zipkin:
+    base-url: http://localhost:9411
+    sender.type: web
+    discovery-client-enabled: false
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8765/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    status-page-url: http://${eureka.instance.hostname}:${server.port}/actuator/info
+    health-check-url: http://${eureka.instance.hostname}:${server.port}/actuator/health
+    hostname: ${HOSTNAME:localhost}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    com.ecommerce.inventory: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Custom Properties
+app:
+  kafka:
+    topics:
+      order-events: order-events
+      inventory-events: inventory-events
+      product-events: product-events
+    consumer-group: inventory-service-group
+  
+  resilience4j:
+    circuitbreaker:
+      instances:
+        productService:
+          registerHealthIndicator: true
+          slidingWindowSize: 10
+          permitted-number-of-calls-in-half-open-state: 3
+          sliding-window-type: COUNT_BASED
+          minimum-number-of-calls: 5
+          wait-duration-in-open-state: 10s
+          failure-rate-threshold: 50
+          event-consumer-buffer-size: 10
+        
+    retry:
+      instances:
+        productService:
+          max-attempts: 3
+          wait-duration: 1000
+          enable-exponential-backoff: true
+          exponential-backoff-multiplier: 2.0

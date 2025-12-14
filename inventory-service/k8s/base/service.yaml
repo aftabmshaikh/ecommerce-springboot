@@ -1,0 +1,18 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  labels:
+    app: inventory-service
+    service: inventory-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8081
+    name: http
+  selector:
+    app: inventory-service

@@ -1,0 +1,39 @@
+server:
+  port: 8765
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+    health-check-url: http://localhost:8765/actuator/health
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    waitTimeInMsWhenSyncEmpty: 0
+    enable-self-preservation: false
+
+spring:
+  application:
+    name: eureka-server
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+  health:
+    db:
+      enabled: true
+    diskSpace:
+      enabled: true
+    refresh:
+      enabled: true

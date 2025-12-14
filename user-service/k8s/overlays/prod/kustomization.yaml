@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+# Production-specific patches
+patchesStrategicMerge:
+- deployment-patch.yaml
+- hpa-patch.yaml
+
+# Production-specific configurations
+configMapGenerator:
+- name: user-service-config
+  behavior: merge
+  literals:
+    - SPRING_PROFILES_ACTIVE=prod
+    - SPRING_DATASOURCE_URL=jdbc:postgresql://user-db:5432/userdb
+    - SPRING_DATASOURCE_USERNAME=user_service
+    - SPRING_JPA_HIBERNATE_DDL_AUTO=validate
+    - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/ecommerce
+    - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/ecommerce/protocol/openid-connect/certs
+    - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+    - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+    - MANAGEMENT_HEALTH_DB_ENABLED=true
+    - MANAGEMENT_HEALTH_LDAP_ENABLED=false
+
+# Production resource limits
+patches:
+- target:
+    kind: Deployment
+    name: user-service
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: "1000m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: "1Gi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: "200m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: "512Mi"
+
+# Production HPA settings
+- target:
+    kind: HorizontalPodAutoscaler
+    name: user-service
+  patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 2
+    - op: replace
+      path: /spec/maxReplicas
+      value: 5
+    - op: replace
+      path: /spec/metrics/0/resource/target/averageUtilization
+      value: 70

@@ -1,0 +1,205 @@
+package com.ecommerce.order.service;
+
+import com.ecommerce.order.client.ProductServiceClient;
+import com.ecommerce.order.dto.OrderRequest;
+import com.ecommerce.order.dto.OrderResponse;
+import com.ecommerce.order.exception.InsufficientStockException;
+import com.ecommerce.order.exception.InvalidOrderException;
+import com.ecommerce.order.exception.ResourceNotFoundException;
+import com.ecommerce.order.mapper.OrderMapper;
+import com.ecommerce.order.model.Order;
+import com.ecommerce.order.model.OrderStatus;
+import com.ecommerce.order.repository.OrderRepository;
+import feign.FeignException;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class OrderServiceFixed {
+    private static final Logger log = LoggerFactory.getLogger(OrderServiceFixed.class);
+    private static final String ORDER_EVENTS_TOPIC = "order-events";
+    
+    private final OrderRepository orderRepository;
+    private final ProductServiceClient productServiceClient;
+    private final OrderMapper orderMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Transactional
+    public OrderResponse createOrder(OrderRequest request) {
+        if (request == null || request.getCustomerId() == null) {
+            throw new InvalidOrderException("Order request and customer ID cannot be null");
+        }
+        
+        // Validate order items
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new InvalidOrderException("Order must contain at least one item");
+        }
+        
+        // Check product availability
+        checkProductAvailability(request);
+        
+        // Map to entity and save
+        Order order = orderMapper.toEntity(request);
+        order.setOrderNumber(generateOrderNumber());
+        order.setStatus(OrderStatus.PENDING);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+        
+        // Calculate total
+        BigDecimal total = request.getItems().stream()
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setTotal(total);
+        
+        // Save order
+        Order savedOrder = orderRepository.save(order);
+        
+        // Update product inventory
+        updateProductInventory(savedOrder);
+        
+        // Publish order created event
+        publishOrderEvent(savedOrder, "ORDER_CREATED");
+        
+        return orderMapper.toResponse(savedOrder);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(UUID orderId) {
+        log.info("Fetching order with id: {}", orderId);
+        Order order = findOrderOrThrow(orderId);
+        return orderMapper.toResponse(order);
+    }
+
+    @Transactional
+    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    public OrderResponse cancelOrder(UUID orderId) {
+        log.info("Cancelling order: {}", orderId);
+        Order order = findOrderOrThrow(orderId);
+        
+        if (order.getStatus().equals(OrderStatus.CANCELLED)) {
+            throw new InvalidOrderException("Order is already cancelled");
+        }
+        
+        if (order.getStatus().equals(OrderStatus.DELIVERED) || order.getStatus().equals(OrderStatus.SHIPPED)) {
+            throw new InvalidOrderException("Cannot cancel order in " + order.getStatus() + " status");
+        }
+        
+        OrderStatus previousStatus = order.getStatus();
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setUpdatedAt(LocalDateTime.now());
+        
+        // Restore product inventory
+        updateProductInventory(order);
+        
+        Order cancelledOrder = orderRepository.save(order);
+        
+        // Publish cancellation event
+        publishOrderEvent(cancelledOrder, "ORDER_CANCELLED");
+        
+        log.info("Cancelled order: {}", orderId);
+        return orderMapper.toResponse(cancelledOrder);
+    }
+
+    private Order findOrderOrThrow(UUID orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+    }
+
+    private void checkProductAvailability(OrderRequest request) {
+        try {
+            // Build list of product IDs and quantities to check
+            List<Map<String, Object>> itemsToCheck = request.getItems().stream()
+                    .map(item -> {
+                        Map<String, Object> itemMap = new HashMap<>();
+                        itemMap.put("productId", item.getProductId());
+                        itemMap.put("quantity", item.getQuantity());
+                        return itemMap;
+                    })
+                    .collect(Collectors.toList());
+            
+            // Call product service to check availability
+            productServiceClient.checkStockAvailability(itemsToCheck);
+            
+        } catch (FeignException.NotFound e) {
+            throw new ResourceNotFoundException("One or more products not found", e);
+        } catch (FeignException e) {
+            log.error("Error checking product availability: {}", e.getMessage());
+            throw new RuntimeException("Error checking product availability", e);
+        }
+    }
+
+    private void updateProductInventory(Order order) {
+        try {
+            List<Map<String, Object>> items = order.getItems().stream()
+                    .map(item -> {
+                        Map<String, Object> itemMap = new HashMap<>();
+                        itemMap.put("productId", item.getProductId());
+                        itemMap.put("quantity", item.getQuantity());
+                        return itemMap;
+                    })
+                    .collect(Collectors.toList());
+            
+            // Call product service to update inventory
+            productServiceClient.updateInventory(items);
+        } catch (FeignException e) {
+            log.error("Failed to update inventory for order {}: {}", order.getId(), e.getMessage());
+            throw new RuntimeException("Failed to update inventory", e);
+        }
+    }
+
+    private void publishOrderEvent(Order order, String eventType) {
+        if (order == null || eventType == null) {
+            log.warn("Cannot publish order event: order or event type is null");
+            return;
+        }
+        
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", eventType);
+            event.put("orderId", order.getId());
+            event.put("orderNumber", order.getOrderNumber());
+            event.put("customerId", order.getCustomerId());
+            event.put("status", order.getStatus().name());
+            event.put("total", order.getTotal());
+            event.put("timestamp", LocalDateTime.now().toString());
+            
+            // Add order items
+            List<Map<String, Object>> items = order.getItems().stream()
+                    .map(item -> {
+                        Map<String, Object> itemMap = new HashMap<>();
+                        itemMap.put("productId", item.getProductId());
+                        itemMap.put("productName", item.getProductName());
+                        itemMap.put("quantity", item.getQuantity());
+                        itemMap.put("unitPrice", item.getUnitPrice());
+                        itemMap.put("totalPrice", item.getTotalPrice());
+                        return itemMap;
+                    })
+                    .collect(Collectors.toList());
+            event.put("items", items);
+            
+            kafkaTemplate.send(ORDER_EVENTS_TOPIC, order.getId().toString(), event);
+            log.info("Published {} event for order: {}", eventType, order.getId());
+        } catch (Exception e) {
+            log.error("Failed to publish order event: {}", e.getMessage(), e);
+        }
+    }
+
+    private String generateOrderNumber() {
+        return "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+}

@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: product-service
+  
+  cloud:
+    # Service Discovery
+    service-registry:
+      auto-registration:
+        enabled: true
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# Eureka Client Configuration
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://eureka-server:8765/eureka/}
+    healthcheck:
+      enabled: true
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    preferIpAddress: true
+    leaseRenewalIntervalInSeconds: 10
+    leaseExpirationDurationInSeconds: 30
+    instanceId: ${spring.application.name}:${random.value}
+
+# Hystrix Configuration (if using circuit breakers)
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 10000
+  metrics:
+    enabled: true
+  threadpool:
+    default:
+      coreSize: 10
+      maximumSize: 20
+      allowMaximumSizeToDivergeFromCoreSize: true
+      maxQueueSize: -1

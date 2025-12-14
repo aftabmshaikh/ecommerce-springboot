@@ -1,0 +1,90 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+# Development-specific patches
+patchesStrategicMerge:
+- deployment-patch.yaml
+- hpa-patch.yaml
+
+# Development-specific configurations
+configMapGenerator:
+- name: inventory-service-config
+  behavior: merge
+  literals:
+    - SPRING_PROFILES_ACTIVE=dev
+    - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-dev:5432/inventorydb
+    - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka-dev:9092
+    - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus,env,loggers
+    - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
+    - MANAGEMENT_HEALTH_DB_ENABLED=true
+    - MANAGEMENT_HEALTH_DISKSPACE_ENABLED=true
+    - MANAGEMENT_HEALTH_KAFKA_ENABLED=true
+    - MANAGEMENT_METRICS_ENABLED=true
+    - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+    - MANAGEMENT_ENDPOINT_METRICS_ENABLED=true
+    - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
+    - SPRING_SLEUTH_SAMPLER_PROBABILITY=1.0
+    - LOGGING_LEVEL_ROOT=INFO
+    - LOGGING_LEVEL_COM_ECOMMERCE=DEBUG
+
+# Development resource limits
+patches:
+- target:
+    kind: Deployment
+    name: inventory-service
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: "1000m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: "1Gi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: "200m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: "512Mi"
+
+# Development HPA settings
+- target:
+    kind: HorizontalPodAutoscaler
+    name: inventory-service
+  patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 1
+    - op: replace
+      path: /spec/maxReplicas
+      value: 3
+    - op: replace
+      path: /spec/targetCPUUtilizationPercentage
+      value: 80
+    - op: replace
+      path: /spec/targetMemoryUtilizationPercentage
+      value: 80
+
+# Development service settings
+- target:
+    kind: Service
+    name: inventory-service
+  patch: |-
+    - op: replace
+      path: /metadata/annotations
+      value:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "actuator/prometheus"
+        prometheus.io/path: "/actuator/prometheus"
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+        nginx.ingress.kubernetes.io/proxy-body-size: 10m
+        nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+        nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

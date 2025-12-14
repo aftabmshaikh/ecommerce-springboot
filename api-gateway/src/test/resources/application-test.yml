@@ -1,0 +1,77 @@
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false  # Disable service discovery for tests
+      routes:
+        - id: product-service
+          uri: http://localhost:${test.services.product.port}
+          predicates:
+            - Path=/api/products/**
+        - id: order-service
+          uri: http://localhost:${test.services.order.port}
+          predicates:
+            - Path=/api/orders/**
+        - id: user-service
+          uri: http://localhost:${test.services.user.port}
+          predicates:
+            - Path=/api/users/**
+
+# Disable security for tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://fake-issuer-url.com
+          jwk-set-uri: https://fake-jwk-uri.com
+    # Disable security for tests
+    enabled: false
+
+# Test security configuration
+  test:
+    security:
+      jwt:
+        enabled: false
+
+# Test server ports
+test:
+  services:
+    product:
+      port: 8081
+    order:
+      port: 8082
+    user:
+      port: 8083
+    
+# Disable Redis for tests
+  redis:
+    enabled: false
+
+# Disable Eureka for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:8765/eureka/
+
+# Disable circuit breaker for tests
+resilience4j.circuitbreaker:
+  instances:
+    productService:
+      register-health-indicator: false
+    orderService:
+      register-health-indicator: false
+    userService:
+      register-health-indicator: false
+
+# Disable rate limiting for tests
+spring.cloud.gateway.filter.ratelimit.enabled: false
+
+# Disable compatibility verifier
+spring.cloud.compatibility-verifier.enabled: false
+
+# Disable Sleuth for tests
+spring.sleuth.enabled: false

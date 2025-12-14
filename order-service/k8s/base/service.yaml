@@ -1,0 +1,18 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+    service: order-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8082
+    name: http
+  selector:
+    app: order-service

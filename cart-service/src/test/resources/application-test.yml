@@ -1,0 +1,80 @@
+# Test configuration for Cart Service
+spring:
+  # Use H2 in-memory database for testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: password
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        hbm2ddl:
+          auto: create-drop
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+        trace: true
+  
+  # Disable security for tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://fake-issuer-url.com
+          jwk-set-uri: https://fake-jwk-uri.com
+    enabled: false
+  
+  # Test security configuration
+  test:
+    security:
+      jwt:
+        enabled: false
+
+# Server port will be set to random in tests
+server:
+  port: 0
+
+# Test properties
+test:
+  customer:
+    id: test-customer-123
+  product:
+    id: test-product-123
+    price: 99.99
+
+# Disable metrics for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ""
+  metrics:
+    enabled: false
+
+# Disable Eureka client for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# Disable Spring Cloud Config for tests
+spring.cloud.config.enabled: false
+
+# Logging configuration
+logging:
+  level:
+    root: DEBUG
+    org.springframework: DEBUG
+    com.ecommerce.cart: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

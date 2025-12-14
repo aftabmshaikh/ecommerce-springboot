@@ -1,0 +1,18 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  application:
+    name: api-gateway-test
+
+# Disable service discovery for tests
+spring.cloud.discovery.enabled: false
+
+# Disable circuit breaker for tests
+resilience4j.circuitbreaker.enabled: false
+
+# Disable rate limiting for tests
+spring.cloud.gateway.filter.ratelimit.enabled: false
+
+# Disable Sleuth for tests
+spring.sleuth.enabled: false

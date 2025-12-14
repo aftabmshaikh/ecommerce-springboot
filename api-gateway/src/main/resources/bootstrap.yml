@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    
+    # Service Discovery
+    service-registry:
+      auto-registration:
+        enabled: true
+    
+    config:
+      enabled: false  # Disable config client if not needed
+
+# Eureka Client Configuration
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://eureka-server:8765/eureka/}
+    healthcheck:
+      enabled: true
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    preferIpAddress: true
+    leaseRenewalIntervalInSeconds: 10
+    leaseExpirationDurationInSeconds: 30
+    instanceId: ${spring.application.name}:${random.value}
+
+# Micrometer Tracing Configuration
+management:
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    web:
+      server:
+        request:
+          autotime:
+            enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+
+# Disable legacy Sleuth and configure Micrometer Tracing
+spring.sleuth.enabled: false
+spring.zipkin.enabled: false
+
+# Logging pattern with trace and span IDs
+logging.pattern.level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{spanExportable:-}]"
