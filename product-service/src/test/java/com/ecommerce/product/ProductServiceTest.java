@@ -22,6 +22,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -179,6 +181,7 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(110, result.getStockQuantity()); // Verify the exact expected value
         verify(productRepository, times(1)).save(any(Product.class));
+        verify(kafkaTemplate, times(1)).send(eq("inventory-updates"), eq("stock-updated"), any(ProductService.StockUpdateEvent.class));
     }
 
     @Test

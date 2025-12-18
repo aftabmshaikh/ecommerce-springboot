@@ -91,7 +91,10 @@ public class CartService {
 
     @Transactional
     public void clearCart(UUID userId) {
-        cartRepository.deleteByUserId(userId);
+        // Fetch the cart first to trigger cascade deletion of cart_items
+        // Direct JPQL DELETE doesn't trigger cascade, so we need to delete the entity
+        cartRepository.findByUserId(userId)
+                .ifPresent(cartRepository::delete);
     }
 
     private Cart createNewCartEntity(UUID userId) {

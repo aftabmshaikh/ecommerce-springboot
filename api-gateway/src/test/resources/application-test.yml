@@ -4,6 +4,21 @@ spring:
       discovery:
         locator:
           enabled: false  # Disable service discovery for tests
+      # Override default-filters to remove RemoveCorsFilter for tests
+      default-filters: []
+      # Override CORS configuration for tests
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: false
       routes:
         - id: product-service
           uri: http://localhost:${test.services.product.port}

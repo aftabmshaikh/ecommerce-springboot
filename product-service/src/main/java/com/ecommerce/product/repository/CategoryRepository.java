@@ -31,6 +31,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     
     boolean existsBySlug(String slug);
     
-    @Query("SELECT COUNT(p) > 0 FROM Product p WHERE p.category.id = :categoryId")
+    @Query("SELECT COUNT(p) > 0 FROM Product p WHERE p.categoryId = :categoryId")
     boolean hasProducts(@Param("categoryId") UUID categoryId);
 }

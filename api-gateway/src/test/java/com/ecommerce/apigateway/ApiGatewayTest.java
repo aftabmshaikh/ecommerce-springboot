@@ -2,12 +2,10 @@ package com.ecommerce.apigateway;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import io.restassured.RestAssured;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
-import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -25,9 +23,9 @@ import org.springframework.beans.factory.annotation.Value;
 import com.ecommerce.apigateway.config.TestConfig;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static io.restassured.RestAssured.given;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWebTestClient
 @Import({TestConfig.class, ApiGatewayTest.TestSecurityConfig.class})
 @AutoConfigureWireMock(port = 0)
 @ActiveProfiles("test")
@@ -69,12 +67,11 @@ public class ApiGatewayTest {
     @Autowired
     private WireMockServer wireMockServer;
 
+    @Autowired
+    private WebTestClient webTestClient;
+
     @BeforeEach
     void setUp() {
-        // Configure RestAssured
-        RestAssured.port = port;
-        RestAssured.baseURI = "http://localhost";
-        
         // Reset WireMock stubs before each test
         if (wireMockServer != null) {
             wireMockServer.resetAll();
@@ -116,14 +113,14 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
 
-        // Test the API Gateway route
-        given()
-            .when()
-            .get("/api/products")
-            .then()
-            .statusCode(200)
-            .contentType("application/json")
-            .body("content[0].name", org.hamcrest.Matchers.equalTo("Test Product"));
+        // Test the API Gateway route using WebTestClient
+        webTestClient.get()
+            .uri("/api/products")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType("application/json")
+            .expectBody()
+            .jsonPath("$.content[0].name").isEqualTo("Test Product");
     }
 
     @Test
@@ -139,14 +136,14 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
 
-        // Test the API Gateway route
-        given()
-            .when()
-            .get("/api/orders")
-            .then()
-            .statusCode(200)
-            .contentType("application/json")
-            .body("content[0].status", org.hamcrest.Matchers.equalTo("PENDING"));
+        // Test the API Gateway route using WebTestClient
+        webTestClient.get()
+            .uri("/api/orders")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType("application/json")
+            .expectBody()
+            .jsonPath("$.content[0].status").isEqualTo("PENDING");
     }
 
     @Test
@@ -162,13 +159,12 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
 
-        // Test the API Gateway route
-        given()
-            .when()
-            .get("/api/users/me")
-            .then()
-            .statusCode(401) // Unauthorized without token
-            .contentType("application/json");
+        // Test the API Gateway route using WebTestClient
+        webTestClient.get()
+            .uri("/api/users/me")
+            .exchange()
+            .expectStatus().isUnauthorized()
+            .expectHeader().contentType("application/json");
     }
 
     @Test
@@ -186,14 +182,14 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
         
-        given()
+        webTestClient.get()
+            .uri("/api/carts")
             .header("X-Customer-Id", customerId)
-            .when()
-            .get("/api/carts")
-            .then()
-            .statusCode(200)
-            .contentType("application/json")
-            .body("items", org.hamcrest.Matchers.notNullValue());
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType("application/json")
+            .expectBody()
+            .jsonPath("$.items").exists();
     }
 
     @Test
@@ -206,11 +202,10 @@ public class ApiGatewayTest {
                     .withHeader("Content-Type", "application/json"))
         );
         
-        given()
-            .when()
-            .get("/api/inventory/123")
-            .then()
-            .statusCode(404); // Not found for non-existent product
+        webTestClient.get()
+            .uri("/api/inventory/123")
+            .exchange()
+            .expectStatus().isNotFound();
     }
 
     @Test
@@ -226,13 +221,14 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
         
-        given()
-            .when()
-            .get("/api/payments/methods")
-            .then()
-            .statusCode(200)
-            .contentType("application/json")
-            .body("$", org.hamcrest.Matchers.not(org.hamcrest.Matchers.empty()));
+        webTestClient.get()
+            .uri("/api/payments/methods")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType("application/json")
+            .expectBody()
+            .jsonPath("$").isArray()
+            .jsonPath("$.length()").isEqualTo(2);
     }
 
     @Test
@@ -248,22 +244,21 @@ public class ApiGatewayTest {
                     .withBody(responseBody))
         );
         
-        given()
-            .when()
-            .get("/api/notifications/history")
-            .then()
-            .statusCode(200)
-            .contentType("application/json")
-            .body("content", org.hamcrest.Matchers.notNullValue());
+        webTestClient.get()
+            .uri("/api/notifications/history")
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType("application/json")
+            .expectBody()
+            .jsonPath("$.content").exists();
     }
 
     @Test
     void nonExistentEndpoint_ShouldReturnNotFound() {
         // No need to stub for non-existent endpoints as they should be handled by the gateway
-        given()
-            .when()
-            .get("/api/non-existent")
-            .then()
-            .statusCode(404);
+        webTestClient.get()
+            .uri("/api/non-existent")
+            .exchange()
+            .expectStatus().isNotFound();
     }
 }

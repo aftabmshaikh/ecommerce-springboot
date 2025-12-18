@@ -15,12 +15,12 @@ public class Transaction {
     public Transaction(){}
     
     // All-args constructor
-    public Transaction(UUID id, Order order, BigDecimal amount, PaymentStatus status, String paymentMethod, 
-                      String transactionId, String paymentGateway, String gatewayTransactionId, 
-                      String gatewayResponseCode, String gatewayResponseMessage, 
-                      String currency, String description, String metadata, String failureReason, 
-                      String failureCode, LocalDateTime processedAt, BigDecimal refundedAmount, 
-                      Boolean isRefunded, String refundReason, LocalDateTime refundedAt, 
+    public Transaction(UUID id, Order order, BigDecimal amount, PaymentStatus status, String paymentMethod,
+                      String transactionId, String paymentGateway, String gatewayTransactionId,
+                      String gatewayResponseCode, String gatewayResponseMessage,
+                      String currency, String description, String metadata, String failureReason,
+                      String failureCode, LocalDateTime processedAt, BigDecimal refundAmount,
+                      boolean refunded, String refundReason, LocalDateTime refundedAt,
                       LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.order = order;
@@ -38,8 +38,8 @@ public class Transaction {
         this.failureReason = failureReason;
         this.failureCode = failureCode;
         this.processedAt = processedAt;
-        this.refundedAmount = refundedAmount;
-        this.isRefunded = isRefunded;
+        this.refundAmount = refundAmount;
+        this.refunded = refunded;
         this.refundReason = refundReason;
         this.refundedAt = refundedAt;
         this.createdAt = createdAt;
@@ -294,12 +294,6 @@ public class Transaction {
     
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
-    
-    @Column(name = "refunded_amount", precision = 19, scale = 2)
-    private BigDecimal refundedAmount;
-    
-    @Column(name = "is_refunded")
-    private Boolean isRefunded;
 
     // Helper method to get the order ID
     public UUID getOrderId() {

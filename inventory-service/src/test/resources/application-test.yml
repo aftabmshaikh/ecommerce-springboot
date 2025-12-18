@@ -1,3 +1,7 @@
+server:
+  servlet:
+    context-path: ""
+
 spring:
   application:
     name: inventory-service
@@ -17,6 +21,7 @@ spring:
     consumer:
       group-id: test-group
       auto-offset-reset: earliest
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
@@ -24,6 +29,8 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    listener:
+      auto-startup: false  # Disable auto-start of Kafka listeners in tests
 
   flyway:
     enabled: true
@@ -52,3 +59,12 @@ logging:
     com.ecommerce: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.apache.kafka: WARN  # Reduce Kafka logging noise
+    kafka: WARN
+    # Testcontainers logging - set to INFO to see Docker status and image download progress
+    org.testcontainers: INFO  # Show Testcontainers operations (container startup, image pulls)
+    org.testcontainers.dockerclient: INFO  # Show Docker client initialization and connection status
+    org.testcontainers.containers: INFO  # Show container lifecycle (starting, started, stopping)
+    org.testcontainers.utility: INFO  # Show image name substitution and image pulling progress
+    org.testcontainers.images: INFO  # Show Docker image pull/download progress and status
+    com.github.dockerjava: WARN  # Reduce Docker Java library noise (keep at WARN)

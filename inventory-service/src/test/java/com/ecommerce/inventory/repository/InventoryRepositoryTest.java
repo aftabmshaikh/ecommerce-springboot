@@ -19,6 +19,33 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * TODO: Optimize Testcontainers Docker client initialization to reduce test startup time
+ * 
+ * Issue: Testcontainers is taking a long time to initialize the Docker client during test execution.
+ * The Docker client initialization happens before each test class that uses Testcontainers, causing
+ * significant delays (especially on first run or when Docker Desktop is not running).
+ * 
+ * Symptoms:
+ * - Long wait at "DockerClientProviderStrategy" initialization
+ * - "ImageNameSubstitutor" loading messages
+ * - Tests taking 30+ seconds just to start
+ * 
+ * Potential solutions:
+ * 1. Ensure Docker Desktop is running before tests
+ * 2. Create ~/.testcontainers.properties with optimized settings:
+ *    - testcontainers.reuse.enable=true
+ *    - testcontainers.ryuk.container.image=testcontainers/ryuk:0.5.1
+ * 3. Consider using @DataJpaTest with H2 for simple repository tests (faster, no Docker)
+ * 4. Use Testcontainers container reuse (already enabled in BaseIntegrationTest)
+ * 5. Pre-pull Docker images: docker pull postgres:15-alpine
+ * 6. Configure Docker environment variables to speed up client detection
+ * 
+ * Note: This test extends BaseIntegrationTest which uses PostgreSQL Testcontainer.
+ * For faster execution, consider splitting into:
+ * - Unit tests using @DataJpaTest with H2 (no Docker needed)
+ * - Integration tests using Testcontainers (for complex queries/transactions)
+ */
 class InventoryRepositoryTest extends BaseIntegrationTest {
 
     @Autowired

@@ -3,8 +3,8 @@ package com.ecommerce.order.api;
 import com.ecommerce.order.controller.OrderController;
 import com.ecommerce.order.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
@@ -21,7 +21,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.mock;
 
-@Configuration
+@TestConfiguration
 @EnableWebMvc
 @EnableSpringDataWebSupport
 public class OrderControllerTestConfig implements WebMvcConfigurer {

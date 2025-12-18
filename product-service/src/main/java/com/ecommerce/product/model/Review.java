@@ -6,8 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -53,13 +51,11 @@ public class Review {
     @ElementCollection
     @CollectionTable(name = "review_images", joinColumns = @JoinColumn(name = "review_id"))
     @Column(name = "image_url")
-    @JdbcTypeCode(SqlTypes.ARRAY)
     private List<String> imageUrls = new ArrayList<>();
     
     @ElementCollection
     @CollectionTable(name = "review_tags", joinColumns = @JoinColumn(name = "review_id"))
     @Column(name = "tag")
-    @JdbcTypeCode(SqlTypes.ARRAY)
     private List<String> tags = new ArrayList<>();
     
     @Column(name = "is_verified_purchase", nullable = false)

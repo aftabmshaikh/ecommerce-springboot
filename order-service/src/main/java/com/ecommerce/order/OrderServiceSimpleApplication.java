@@ -1,17 +1,12 @@
 package com.ecommerce.order;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication(scanBasePackages = {
-    "com.ecommerce.order.controller",
-    "com.ecommerce.order.service",
-    "com.ecommerce.order.model"
-})
-@EntityScan("com.ecommerce.order.model")
-@EnableJpaRepositories("com.ecommerce.order.repository")
+/**
+ * Optional simplified entry point used for the "simple" profile.
+ * Removed SpringBootApplication annotations to avoid multiple
+ * @SpringBootConfiguration classes during test scanning.
+ */
 public class OrderServiceSimpleApplication {
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(OrderServiceSimpleApplication.class);

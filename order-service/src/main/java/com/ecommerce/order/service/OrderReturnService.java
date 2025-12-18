@@ -145,7 +145,7 @@ public class OrderReturnService {
                     .map(OrderItem::getReturnedQuantity)
                     .map(returnedQty -> returnedQty + item.getQuantity() > orderItemRepository
                             .findById(item.getOrderItemId())
-                            .orElseThrow()
+                            .orElseThrow(() -> new OrderItemNotFoundException("Order item not found with ID: " + item.getOrderItemId()))
                             .getQuantity())
                     .orElse(false);
 

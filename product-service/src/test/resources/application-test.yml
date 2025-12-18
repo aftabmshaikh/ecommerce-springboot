@@ -30,6 +30,5 @@ spring:
 # Disable Eureka for tests
 spring.cloud.discovery.enabled: false
 
-# Disable Feign client for tests
-feign.client.config.default.loggerLevel: none
-feign.client.config.default.loggerLevel: BASIC
+# Disable Feign client detailed logging for tests
+feign.client.config.default.loggerLevel: NONE
